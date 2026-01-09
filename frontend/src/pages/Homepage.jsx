@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router"; // Fixed import
+import { NavLink } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import axiosClient from "../utils/axiosClient";
 import { logoutUser } from "../authSlice";
@@ -21,7 +21,7 @@ function Homepage() {
         const { data } = await axiosClient.get("/problem/getAllProblem");
         setProblems(data);
       } catch (error) {
-        console.error("Error fetching problems:", error);
+        console.error(error);
       }
     };
 
@@ -30,7 +30,7 @@ function Homepage() {
         const { data } = await axiosClient.get("/problem/problemSolvedByUser");
         setSolvedProblems(data);
       } catch (error) {
-        console.error("Error fetching solved problems:", error);
+        console.error(error);
       }
     };
 
@@ -40,7 +40,7 @@ function Homepage() {
 
   const handleLogout = () => {
     dispatch(logoutUser());
-    setSolvedProblems([]); // Clear solved problems on logout
+    setSolvedProblems([]);
   };
 
   const filteredProblems = problems.filter((problem) => {
@@ -55,44 +55,48 @@ function Homepage() {
 
   return (
     <div className="min-h-screen bg-base-200">
-      {/* Navigation Bar */}
-      <nav className="navbar bg-base-100 shadow-lg px-4">
+      {/* Navbar */}
+      <nav className="navbar bg-base-100 shadow-md px-6">
         <div className="flex-1">
-          <NavLink to="/" className="btn btn-ghost text-xl">
+          <NavLink
+            to="/"
+            className="text-2xl font-extrabold tracking-wide bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
+          >
             BitCode
           </NavLink>
+          <span className="ml-3 text-sm text-gray-400 hidden md:block">
+            Practice • Solve • Master
+          </span>
         </div>
-        <div className="flex-none gap-4">
-          <div className="dropdown dropdown-end">
-            <div tabIndex={0} className="btn btn-ghost">
-              {user?.firstName}
-            </div>
-            <ul className="mt-3 p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52">
-              <li>
-                <button onClick={handleLogout}>Logout</button>
-              </li>
-              {user.role == "admin" && (
-                <li>
-                  <NavLink to="/admin">Admin</NavLink>
-                </li>
-              )}
-            </ul>
+
+        <div className="dropdown dropdown-end">
+          <div tabIndex={0} className="btn btn-ghost font-medium">
+            {user?.firstName}
           </div>
+          <ul className="menu menu-sm dropdown-content bg-base-100 rounded-box shadow w-48 mt-3">
+            {user?.role === "admin" && (
+              <li>
+                <NavLink to="/admin">Admin Panel</NavLink>
+              </li>
+            )}
+            <li>
+              <button onClick={handleLogout}>Logout</button>
+            </li>
+          </ul>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <div className="container mx-auto p-4">
+      {/* Content */}
+      <div className="container mx-auto px-4 py-8">
         {/* Filters */}
         <div className="flex flex-wrap gap-4 mb-6">
-          {/* New Status Filter */}
           <select
             className="select select-bordered"
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
           >
-            <option value="all">All Problems</option>
-            <option value="solved">Solved Problems</option>
+            <option value="all">All</option>
+            <option value="solved">Solved</option>
           </select>
 
           <select
@@ -102,7 +106,7 @@ function Homepage() {
               setFilters({ ...filters, difficulty: e.target.value })
             }
           >
-            <option value="all">All Difficulties</option>
+            <option value="all">Difficulty</option>
             <option value="easy">Easy</option>
             <option value="medium">Medium</option>
             <option value="hard">Hard</option>
@@ -113,7 +117,7 @@ function Homepage() {
             value={filters.tag}
             onChange={(e) => setFilters({ ...filters, tag: e.target.value })}
           >
-            <option value="all">All Tags</option>
+            <option value="all">Topic</option>
             <option value="array">Array</option>
             <option value="linkedList">Linked List</option>
             <option value="graph">Graph</option>
@@ -121,52 +125,57 @@ function Homepage() {
           </select>
         </div>
 
-        {/* Problems List */}
-        <div className="grid gap-4">
-          {filteredProblems.map((problem) => (
-            <div key={problem._id} className="card bg-base-100 shadow-xl">
-              <div className="card-body">
-                <div className="flex items-center justify-between">
-                  <h2 className="card-title">
-                    <NavLink
-                      to={`/problem/${problem._id}`}
-                      className="hover:text-primary"
-                    >
-                      {problem.title}
-                    </NavLink>
-                  </h2>
-                  {solvedProblems.some((sp) => sp._id === problem._id) && (
-                    <div className="badge badge-success gap-2">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      Solved
-                    </div>
-                  )}
-                </div>
+        {/* Table Header */}
+        <div className="hidden md:grid grid-cols-4 text-sm font-semibold text-gray-500 px-6 mb-2">
+          <div>Problem</div>
+          <div>Difficulty</div>
+          <div>Topic</div>
+          <div>Status</div>
+        </div>
 
-                <div className="flex gap-2">
-                  <div
-                    className={`badge ${getDifficultyBadgeColor(
-                      problem.difficulty
-                    )}`}
-                  >
-                    {problem.difficulty}
-                  </div>
-                  <div className="badge badge-info">{problem.tags}</div>
-                </div>
+        {/* Problem Cards */}
+        <div className="space-y-3">
+          {filteredProblems.map((problem) => {
+            const isSolved = solvedProblems.some(
+              (sp) => sp._id === problem._id
+            );
+
+            return (
+              <div
+                key={problem._id}
+                className="grid grid-cols-1 md:grid-cols-4 items-center bg-base-100 px-6 py-4 rounded-xl shadow hover:shadow-lg transition"
+              >
+                {/* Title */}
+                <NavLink
+                  to={`/problem/${problem._id}`}
+                  className="font-semibold hover:text-primary"
+                >
+                  {problem.title}
+                </NavLink>
+
+                {/* Difficulty */}
+                <span
+                  className={`badge ${getDifficultyBadgeColor(
+                    problem.difficulty
+                  )}`}
+                >
+                  {problem.difficulty.toUpperCase()}
+                </span>
+
+                {/* Topic */}
+                <span className="badge badge-outline badge-info">
+                  {problem.tags}
+                </span>
+
+                {/* Status */}
+                {isSolved ? (
+                  <span className="badge badge-success">Solved</span>
+                ) : (
+                  <span className="badge badge-ghost">Unsolved</span>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

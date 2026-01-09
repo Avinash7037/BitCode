@@ -6,6 +6,7 @@ import { checkAuth } from "./authSlice";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Homepage from "./pages/Homepage";
+import CollabPage from "./pages/CollabPage";
 
 import Admin from "./pages/Admin";
 import AdminPanel from "./components/AdminPanel";
@@ -87,6 +88,8 @@ function App() {
         path="/admin/upload/:problemId"
         element={isAdmin ? <AdminUpload /> : <Navigate to="/" />}
       />
+
+      <Route path="/collab/:roomId" element={<CollabPage />} />
 
       {/* ---------------- USER ROUTES ---------------- */}
       <Route path="/problem/:problemId" element={<ProblemPage />} />
