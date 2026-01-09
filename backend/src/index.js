@@ -1,19 +1,21 @@
 const express = require("express");
 const app = express();
 require("dotenv").config();
+
 const main = require("./config/db");
 const cookieParser = require("cookie-parser");
-const authRouter = require("./routes/userAuth");
 const redisClient = require("./config/redis");
+
+const authRouter = require("./routes/userAuth");
 const problemRouter = require("./routes/problemCreator");
 const submitRouter = require("./routes/submit");
 const aiRouter = require("./routes/aiChatting");
 const videoRouter = require("./routes/videoCreator");
+const collabRouter = require("./routes/collab.routes");
+
 const cors = require("cors");
-
-// console.log("Hello")
-
-console.log("GEMINI_KEY =", process.env.GEMINI_KEY);
+const http = require("http");
+const { initSocket } = require("./socket");
 
 app.use(
   cors({
@@ -30,18 +32,24 @@ app.use("/problem", problemRouter);
 app.use("/submission", submitRouter);
 app.use("/ai", aiRouter);
 app.use("/video", videoRouter);
+app.use("/collab", collabRouter);
 
-const InitalizeConnection = async () => {
+const InitializeConnection = async () => {
   try {
     await Promise.all([main(), redisClient.connect()]);
     console.log("DB Connected");
 
-    app.listen(process.env.PORT, () => {
-      console.log("Server listening at port number: " + process.env.PORT);
+    const server = http.createServer(app);
+
+    // ✅ correct socket initialization
+    initSocket(server);
+
+    server.listen(process.env.PORT, () => {
+      console.log("Server listening at port:", process.env.PORT);
     });
   } catch (err) {
-    console.log("Error: " + err);
+    console.error("Error:", err);
   }
 };
 
-InitalizeConnection();
+InitializeConnection();
