@@ -14,66 +14,67 @@ const solveDoubt = async (req, res) => {
       startCode,
     } = req.body;
 
-    if (!messages.length || !messages[messages.length - 1]?.content?.trim()) {
+    if (!messages.length) {
       return res.status(400).json({ message: "Message cannot be empty" });
     }
 
-    const systemContext = `
-You are an expert DSA tutor.
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage?.content?.trim()) {
+      return res.status(400).json({ message: "Message cannot be empty" });
+    }
 
-IMPORTANT RESPONSE FORMAT RULES (MANDATORY):
-- Respond ONLY in MARKDOWN
-- Use proper headings (###)
-- Use bullet points and numbered lists
-- Use **bold** for key terms
-- Use \`inline code\`
-- Use fenced code blocks with language tags
-- Use mathematical symbols (O(n), ≤, ≥)
+    // ✅ PROBLEM CONTEXT AS USER MESSAGE (CRITICAL FIX)
+    const problemContext = `
+You are an expert Data Structures and Algorithms tutor.
 
-STRUCTURE:
-### Explanation
-### Approach
-### Code (only if asked)
-### Complexity
+Answer STRICTLY based on the following problem.
 
-PROBLEM:
-Title: ${title}
+### Problem Title
+${title}
 
-Description:
+### Problem Description
 ${description}
 
-Examples:
+### Examples
 ${JSON.stringify(testCases, null, 2)}
 
-Starter Code:
+### Starter Code
 ${startCode}
 
-RULES:
+### Rules
 - Stay within this problem
-- Give hints first unless full solution is asked
+- Give hints first unless full solution is explicitly asked
+- Respond ONLY in Markdown
+- Use headings, bullet points, code blocks, and Big-O notation
 `;
 
-    const contents = messages.map((m) => ({
-      role: "user",
-      parts: [{ text: m.content }],
-    }));
+    // ✅ Gemini-compatible message structure
+    const contents = [
+      {
+        role: "user",
+        parts: [{ text: problemContext }],
+      },
+      {
+        role: "user",
+        parts: [{ text: lastMessage.content }],
+      },
+    ];
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      systemInstruction: systemContext,
       contents,
     });
 
     const aiText =
-      response?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "No response from AI";
+      response?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ||
+      "⚠️ No response from AI.";
 
-    res.status(200).json({
-      message: aiText,
-    });
+    return res.status(200).json({ message: aiText });
   } catch (err) {
     console.error("Gemini Error:", err);
-    res.status(500).json({ message: "AI error" });
+    return res.status(500).json({
+      message: "Error from AI Chatbot",
+    });
   }
 };
 
