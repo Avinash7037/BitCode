@@ -1,16 +1,31 @@
 import axios from "axios";
 
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL || "http://localhost:3000",
+  baseURL: import.meta.env.VITE_BACKEND_URL,
   withCredentials: true,
 });
 
-/* 🔥 Silence /user/check 401 errors */
+/* 🔑 Attach JWT token to every request */
+axiosClient.interceptors.request.use((config) => {
+  const auth = localStorage.getItem("auth");
+
+  if (auth) {
+    const { token } = JSON.parse(auth);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  return config;
+});
+
+/* ❌ If token expired → logout */
 axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.config?.url === "/user/check" && error.response?.status === 401) {
-      return Promise.resolve({ data: { user: null } });
+    if (error.response?.status === 401) {
+      localStorage.removeItem("auth");
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   }
