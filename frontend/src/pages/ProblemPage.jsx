@@ -348,7 +348,9 @@ const ProblemPage = () => {
             className="btn btn-outline btn-sm"
             onClick={async () => {
               const res = await axiosClient.post("/collab/create");
-              navigate(`/collab/${res.data.roomId}`);
+              navigate(
+                `/collab/${res.data.roomId}?problemId=${problemId}&leader=true`
+              );
             }}
           >
             🤝 Collaborate
