@@ -24,7 +24,9 @@ export const loginUser = createAsyncThunk(
       const res = await axiosClient.post("/user/login", credentials);
       return res.data.user;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Login failed");
+      return rejectWithValue(
+        error.response?.data?.message || "Invalid email or password"
+      );
     }
   }
 );
@@ -32,32 +34,25 @@ export const loginUser = createAsyncThunk(
 /* ================= CHECK AUTH ================= */
 export const checkAuth = createAsyncThunk(
   "auth/check",
-  async (_, { rejectWithValue }) => {
+  async (_, { fulfillWithValue }) => {
     try {
       const res = await axiosClient.get("/user/check");
       return res.data.user;
     } catch (error) {
-      // 👇 401 is NORMAL when user is not logged in
+      // 🔥 This is NOT an error — user is just not logged in
       if (error.response?.status === 401) {
-        return null;
+        return fulfillWithValue(null);
       }
-      return rejectWithValue("Auth check failed");
+      throw error;
     }
   }
 );
 
 /* ================= LOGOUT ================= */
-export const logoutUser = createAsyncThunk(
-  "auth/logout",
-  async (_, { rejectWithValue }) => {
-    try {
-      await axiosClient.post("/user/logout");
-      return null;
-    } catch {
-      return rejectWithValue("Logout failed");
-    }
-  }
-);
+export const logoutUser = createAsyncThunk("auth/logout", async () => {
+  await axiosClient.post("/user/logout");
+  return null;
+});
 
 const authSlice = createSlice({
   name: "auth",
@@ -67,9 +62,14 @@ const authSlice = createSlice({
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearAuthError: (state) => {
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
+
       /* -------- REGISTER -------- */
       .addCase(registerUser.pending, (state) => {
         state.loading = true;
@@ -109,9 +109,6 @@ const authSlice = createSlice({
         state.user = action.payload;
         state.isAuthenticated = !!action.payload;
       })
-      .addCase(checkAuth.rejected, (state) => {
-        state.loading = false;
-      })
 
       /* -------- LOGOUT -------- */
       .addCase(logoutUser.fulfilled, (state) => {
@@ -122,4 +119,5 @@ const authSlice = createSlice({
   },
 });
 
+export const { clearAuthError } = authSlice.actions;
 export default authSlice.reducer;

@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import axiosClient from "../utils/axiosClient";
 import { logoutUser } from "../authSlice";
 
 function Homepage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+
   const [problems, setProblems] = useState([]);
   const [solvedProblems, setSolvedProblems] = useState([]);
   const [filters, setFilters] = useState({
@@ -38,9 +40,11 @@ function Homepage() {
     if (user) fetchSolvedProblems();
   }, [user]);
 
-  const handleLogout = () => {
-    dispatch(logoutUser());
+  // ✅ LOGOUT → LANDING PAGE
+  const handleLogout = async () => {
+    await dispatch(logoutUser());
     setSolvedProblems([]);
+    navigate("/"); // Landing Page
   };
 
   const filteredProblems = problems.filter((problem) => {
@@ -55,7 +59,7 @@ function Homepage() {
 
   return (
     <div className="min-h-screen bg-base-200">
-      {/* Navbar */}
+      {/* ---------------- Navbar ---------------- */}
       <nav className="navbar bg-base-100 shadow-md px-6">
         <div className="flex-1">
           <NavLink
@@ -91,7 +95,7 @@ function Homepage() {
         </div>
       </nav>
 
-      {/* Content */}
+      {/* ---------------- Content ---------------- */}
       <div className="container mx-auto px-4 py-8">
         {/* Filters */}
         <div className="flex flex-wrap gap-4 mb-6">
@@ -138,7 +142,7 @@ function Homepage() {
           <div>Status</div>
         </div>
 
-        {/* Problem Cards */}
+        {/* Problems */}
         <div className="space-y-3">
           {filteredProblems.map((problem) => {
             const isSolved = solvedProblems.some(
@@ -150,7 +154,6 @@ function Homepage() {
                 key={problem._id}
                 className="grid grid-cols-1 md:grid-cols-4 items-center bg-base-100 px-6 py-4 rounded-xl shadow hover:shadow-lg transition"
               >
-                {/* Title */}
                 <NavLink
                   to={`/problem/${problem._id}`}
                   className="font-semibold hover:text-primary"
@@ -158,7 +161,6 @@ function Homepage() {
                   {problem.title}
                 </NavLink>
 
-                {/* Difficulty */}
                 <span
                   className={`badge ${getDifficultyBadgeColor(
                     problem.difficulty
@@ -167,12 +169,10 @@ function Homepage() {
                   {problem.difficulty.toUpperCase()}
                 </span>
 
-                {/* Topic */}
                 <span className="badge badge-outline badge-info">
                   {problem.tags}
                 </span>
 
-                {/* Status */}
                 {isSolved ? (
                   <span className="badge badge-success">Solved</span>
                 ) : (
