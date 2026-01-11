@@ -1,6 +1,17 @@
 const { Server } = require("socket.io");
 
-const usersInRoom = {};
+/**
+ * roomId -> {
+ *   leaderSocketId,
+ *   users: Map(socketId -> userName)
+ * }
+ */
+const rooms = {};
+
+/**
+ * socketId -> roomId
+ */
+const socketRoomMap = {};
 
 const initSocket = (httpServer) => {
   const io = new Server(httpServer, {
@@ -11,42 +22,70 @@ const initSocket = (httpServer) => {
   });
 
   io.on("connection", (socket) => {
-    console.log("🟢 User connected:", socket.id);
+    console.log("🟢 Connected:", socket.id);
 
-    socket.on("join-room", ({ roomId, userName }) => {
+    // ================= JOIN =================
+    socket.on("join-room", ({ roomId, userName, isLeader }) => {
+      if (socketRoomMap[socket.id]) return; // prevent duplicate joins
+
       socket.join(roomId);
+      socketRoomMap[socket.id] = roomId;
 
-      if (!usersInRoom[roomId]) usersInRoom[roomId] = [];
-
-      // ✅ prevent duplicates
-      if (!usersInRoom[roomId].some((u) => u.socketId === socket.id)) {
-        usersInRoom[roomId].push({
-          socketId: socket.id,
-          name: userName,
-        });
+      if (!rooms[roomId]) {
+        rooms[roomId] = {
+          leaderSocketId: socket.id,
+          users: new Map(),
+        };
       }
 
-      io.to(roomId).emit("room-users", usersInRoom[roomId]);
-    });
+      if (isLeader) {
+        rooms[roomId].leaderSocketId = socket.id;
+      }
 
-    socket.on("leave-room", ({ roomId }) => {
-      if (!usersInRoom[roomId]) return;
+      rooms[roomId].users.set(socket.id, userName);
 
-      usersInRoom[roomId] = usersInRoom[roomId].filter(
-        (u) => u.socketId !== socket.id
+      io.to(roomId).emit(
+        "room-users",
+        Array.from(rooms[roomId].users.entries()).map(([socketId, name]) => ({
+          socketId,
+          name,
+        }))
       );
-
-      if (usersInRoom[roomId].length === 0) {
-        delete usersInRoom[roomId];
-      } else {
-        io.to(roomId).emit("room-users", usersInRoom[roomId]);
-      }
     });
 
+    // ================= LEAVE =================
+    socket.on("leave-room", ({ roomId }) => {
+      const room = rooms[roomId];
+      if (!room) return;
+
+      // 👑 Leader ends meeting
+      if (room.leaderSocketId === socket.id) {
+        io.to(roomId).emit("meeting-ended");
+        delete rooms[roomId];
+        delete socketRoomMap[socket.id];
+        return;
+      }
+
+      // 👤 Normal user leaves
+      room.users.delete(socket.id);
+      delete socketRoomMap[socket.id]; // ✅ FIXED syntax error
+      socket.leave(roomId);
+
+      io.to(roomId).emit(
+        "room-users",
+        Array.from(room.users.entries()).map(([socketId, name]) => ({
+          socketId,
+          name,
+        }))
+      );
+    });
+
+    // ================= CODE =================
     socket.on("code-change", ({ roomId, code }) => {
       socket.to(roomId).emit("code-update", code);
     });
 
+    // ================= CHAT =================
     socket.on("send-message", ({ roomId, message, userName }) => {
       io.to(roomId).emit("receive-message", {
         userName,
@@ -55,13 +94,42 @@ const initSocket = (httpServer) => {
       });
     });
 
+    // ================= CURSOR =================
+    socket.on("cursor-change", ({ roomId, userName, position }) => {
+      socket.to(roomId).emit("cursor-update", {
+        userName,
+        position,
+      });
+    });
+
+    // ================= DISCONNECT =================
     socket.on("disconnect", () => {
-      for (const roomId in usersInRoom) {
-        usersInRoom[roomId] = usersInRoom[roomId].filter(
-          (u) => u.socketId !== socket.id
-        );
-        io.to(roomId).emit("room-users", usersInRoom[roomId]);
+      const roomId = socketRoomMap[socket.id];
+      if (!roomId) return;
+
+      const room = rooms[roomId];
+      if (!room) {
+        delete socketRoomMap[socket.id];
+        return;
       }
+
+      if (room.leaderSocketId === socket.id) {
+        io.to(roomId).emit("meeting-ended");
+        delete rooms[roomId];
+      } else {
+        room.users.delete(socket.id);
+
+        io.to(roomId).emit(
+          "room-users",
+          Array.from(room.users.entries()).map(([socketId, name]) => ({
+            socketId,
+            name,
+          }))
+        );
+      }
+
+      delete socketRoomMap[socket.id];
+      console.log("🔴 Disconnected:", socket.id);
     });
   });
 };
