@@ -4,7 +4,7 @@ let socket;
 
 export const getSocket = () => {
   if (!socket) {
-    socket = io("http://localhost:3000", {
+    socket = io("https://bitcode-backend-r0n4.onrender.com", {
       withCredentials: true,
       autoConnect: true,
       reconnection: true,
