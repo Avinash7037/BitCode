@@ -64,32 +64,55 @@ function Homepage() {
         <div className="flex-1">
           <NavLink
             to="/"
-            className="text-2xl font-extrabold tracking-wide bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
+            className="text-2xl font-extrabold tracking-wide text-blue-600 hover:text-blue-700 drop-shadow-sm hover:drop-shadow-md transition"
           >
             BitCode
           </NavLink>
+
           <span className="ml-3 text-sm text-gray-400 hidden md:block">
             Practice • Solve • Master
           </span>
         </div>
 
         <div className="dropdown dropdown-end">
-          <div tabIndex={0} className="btn btn-ghost font-medium">
-            {user?.firstName}
+          <div
+            tabIndex={0}
+            className="flex items-center gap-2 px-4 py-2 rounded-md cursor-pointer text-gray-700 hover:bg-gray-100 transition"
+          >
+            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+              {user?.firstName?.charAt(0)}
+            </div>
+            <span className="font-medium">{user?.firstName}</span>
           </div>
-          <ul className="menu menu-sm dropdown-content bg-base-100 rounded-box shadow w-48 mt-3">
+
+          <ul className="dropdown-content mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg text-sm z-50">
             <li>
-              <NavLink to="/profile">My Profile</NavLink>
+              <NavLink
+                to="/profile"
+                className="block px-4 py-2 hover:bg-gray-100 text-gray-700"
+              >
+                My Profile
+              </NavLink>
             </li>
 
             {user?.role === "admin" && (
               <li>
-                <NavLink to="/admin">Admin Panel</NavLink>
+                <NavLink
+                  to="/admin"
+                  className="block px-4 py-2 hover:bg-gray-100 text-gray-700"
+                >
+                  Admin Panel
+                </NavLink>
               </li>
             )}
 
-            <li>
-              <button onClick={handleLogout}>Logout</button>
+            <li className="border-t">
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-2 text-red-500 hover:bg-red-50"
+              >
+                Logout
+              </button>
             </li>
           </ul>
         </div>
