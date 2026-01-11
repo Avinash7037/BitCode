@@ -27,7 +27,7 @@ app.use(cookieParser());
 /* 🔥 CORS MUST COME BEFORE ROUTES */
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "https://bitcode-frontend.onrender.com",
     credentials: true,
   })
 );
