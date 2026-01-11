@@ -1,22 +1,30 @@
 const express = require("express");
-const app = express();
 require("dotenv").config();
+const http = require("http");
 
 const main = require("./config/db");
-const cookieParser = require("cookie-parser");
 const redisClient = require("./config/redis");
 
+const cookieParser = require("cookie-parser");
+const cors = require("cors");
+
 const authRouter = require("./routes/userAuth");
+const profileRouter = require("./routes/profile");
 const problemRouter = require("./routes/problemCreator");
 const submitRouter = require("./routes/submit");
 const aiRouter = require("./routes/aiChatting");
 const videoRouter = require("./routes/videoCreator");
 const collabRouter = require("./routes/collab.routes");
 
-const cors = require("cors");
-const http = require("http");
 const { initSocket } = require("./socket");
 
+const app = express();
+
+/* 🔥 MUST BE FIRST */
+app.use(express.json());
+app.use(cookieParser());
+
+/* 🔥 CORS MUST COME BEFORE ROUTES */
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -24,32 +32,29 @@ app.use(
   })
 );
 
-app.use(express.json());
-app.use(cookieParser());
-
+/* 🔥 ROUTES AFTER MIDDLEWARE */
 app.use("/user", authRouter);
+app.use("/user", profileRouter);
 app.use("/problem", problemRouter);
 app.use("/submission", submitRouter);
 app.use("/ai", aiRouter);
 app.use("/video", videoRouter);
 app.use("/collab", collabRouter);
 
-const InitializeConnection = async () => {
+const start = async () => {
   try {
     await Promise.all([main(), redisClient.connect()]);
-    console.log("DB Connected");
+    console.log("DB & Redis connected");
 
     const server = http.createServer(app);
-
-    // ✅ correct socket initialization
     initSocket(server);
 
-    server.listen(process.env.PORT, () => {
-      console.log("Server listening at port:", process.env.PORT);
+    server.listen(3000, () => {
+      console.log("Server running on port 3000");
     });
   } catch (err) {
-    console.error("Error:", err);
+    console.error("Startup error:", err);
   }
 };
 
-InitializeConnection();
+start();
