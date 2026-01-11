@@ -15,6 +15,7 @@ import AdminVideo from "./components/AdminVideo";
 import AdminUpload from "./components/AdminUpload";
 import AdminUpdate from "./components/AdminUpdate";
 import ProblemPage from "./pages/ProblemPage";
+import ProfilePage from "./pages/ProfilePage";
 
 // ✅ NEW: update list page
 import AdminUpdateList from "./pages/AdminUpdateList";
@@ -55,6 +56,11 @@ function App() {
       <Route
         path="/admin"
         element={isAdmin ? <Admin /> : <Navigate to="/" />}
+      />
+
+      <Route
+        path="/profile"
+        element={isAuthenticated ? <ProfilePage /> : <Navigate to="/signup" />}
       />
 
       <Route

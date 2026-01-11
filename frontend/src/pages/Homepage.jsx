@@ -74,11 +74,16 @@ function Homepage() {
             {user?.firstName}
           </div>
           <ul className="menu menu-sm dropdown-content bg-base-100 rounded-box shadow w-48 mt-3">
+            <li>
+              <NavLink to="/profile">My Profile</NavLink>
+            </li>
+
             {user?.role === "admin" && (
               <li>
                 <NavLink to="/admin">Admin Panel</NavLink>
               </li>
             )}
+
             <li>
               <button onClick={handleLogout}>Logout</button>
             </li>

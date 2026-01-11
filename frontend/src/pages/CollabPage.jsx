@@ -13,6 +13,7 @@ function CollabPage() {
   const navigate = useNavigate();
 
   const socket = useRef(null);
+  const editorRef = useRef(null);
   const joinedRef = useRef(false);
   const isRemote = useRef(false);
 
@@ -21,6 +22,7 @@ function CollabPage() {
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
+  const [cursors, setCursors] = useState({});
 
   const userName =
     localStorage.getItem("username") ||
@@ -28,12 +30,13 @@ function CollabPage() {
 
   // ================= SOCKET SETUP =================
   useEffect(() => {
-    socket.current = getSocket();
+    const s = getSocket();
+    socket.current = s;
 
-    // 🔒 Join only once per mount
+    // 🔒 join only once
     if (!joinedRef.current) {
       joinedRef.current = true;
-      socket.current.emit("join-room", {
+      s.emit("join-room", {
         roomId,
         userName,
         isLeader,
@@ -47,30 +50,32 @@ function CollabPage() {
       setCode(newCode);
     };
 
-    const handleMessage = (msg) => {
-      setMessages((prev) => [...prev, msg]);
+    const handleMessage = (msg) => setMessages((prev) => [...prev, msg]);
+
+    const handleCursor = ({ userName, position }) => {
+      setCursors((prev) => ({ ...prev, [userName]: position }));
     };
 
     const handleMeetingEnded = () => {
-      // 👑 Leader → problem page
       if (isLeader && problemId) {
         navigate(`/problem/${problemId}`);
       } else {
-        // 👤 Others → signup
         navigate("/signup");
       }
     };
 
-    socket.current.on("room-users", handleUsers);
-    socket.current.on("code-update", handleCodeUpdate);
-    socket.current.on("receive-message", handleMessage);
-    socket.current.on("meeting-ended", handleMeetingEnded);
+    s.on("room-users", handleUsers);
+    s.on("code-update", handleCodeUpdate);
+    s.on("receive-message", handleMessage);
+    s.on("cursor-update", handleCursor);
+    s.on("meeting-ended", handleMeetingEnded);
 
     return () => {
-      socket.current.off("room-users", handleUsers);
-      socket.current.off("code-update", handleCodeUpdate);
-      socket.current.off("receive-message", handleMessage);
-      socket.current.off("meeting-ended", handleMeetingEnded);
+      s.off("room-users", handleUsers);
+      s.off("code-update", handleCodeUpdate);
+      s.off("receive-message", handleMessage);
+      s.off("cursor-update", handleCursor);
+      s.off("meeting-ended", handleMeetingEnded);
       joinedRef.current = false;
     };
   }, [roomId, isLeader, problemId, navigate, userName]);
@@ -81,10 +86,24 @@ function CollabPage() {
       isRemote.current = false;
       return;
     }
+
     setCode(value || "");
     socket.current.emit("code-change", {
       roomId,
       code: value,
+    });
+  };
+
+  // ================= CURSOR SEND =================
+  const handleEditorMount = (editor) => {
+    editorRef.current = editor;
+
+    editor.onDidChangeCursorPosition((e) => {
+      socket.current.emit("cursor-change", {
+        roomId,
+        userName,
+        position: e.position,
+      });
     });
   };
 
@@ -101,10 +120,10 @@ function CollabPage() {
     setChatInput("");
   };
 
-  // ================= INVITE (LEADER ONLY) =================
+  // ================= INVITE =================
   const inviteUser = () => {
-    const inviteLink = `${window.location.origin}/collab/${roomId}?problemId=${problemId}&leader=false`;
-    navigator.clipboard.writeText(inviteLink);
+    const link = `${window.location.origin}/collab/${roomId}?problemId=${problemId}&leader=false`;
+    navigator.clipboard.writeText(link);
     alert("Invite link copied!");
   };
 
@@ -112,30 +131,29 @@ function CollabPage() {
   const leaveRoom = () => {
     socket.current.emit("leave-room", { roomId });
 
-    // 👤 Non-leader: allow backend to broadcast first
+    // non-leader leaves → go to signup
     if (!isLeader) {
-      setTimeout(() => {
-        navigate("/signup");
-      }, 100); // ⏱ tiny delay = reliable update
+      setTimeout(() => navigate("/signup"), 100);
     }
-    // 👑 Leader navigation handled by "meeting-ended"
+    // leader → handled by meeting-ended
   };
 
   return (
     <div className="h-screen flex bg-base-200">
-      {/* ================= EDITOR ================= */}
+      {/* Editor */}
       <div className="w-3/4 p-2">
         <Editor
           height="100%"
           language={language}
           value={code}
           onChange={handleCodeChange}
+          onMount={handleEditorMount}
           theme="vs-dark"
           options={{ minimap: { enabled: false } }}
         />
       </div>
 
-      {/* ================= SIDEBAR ================= */}
+      {/* Sidebar */}
       <div className="w-1/4 bg-base-100 p-4 flex flex-col border-l">
         <div className="flex justify-between mb-3">
           {isLeader && (
@@ -143,23 +161,21 @@ function CollabPage() {
               Invite
             </button>
           )}
-
           <button className="btn btn-sm btn-error" onClick={leaveRoom}>
             Leave
           </button>
         </div>
 
         <h2 className="font-bold mb-1">👥 Collaborators ({users.length})</h2>
-        <ul className="mb-3 text-sm space-y-1">
+        <ul className="mb-3 text-sm">
           {users.map((u) => (
             <li key={u.socketId}>• {u.name}</li>
           ))}
         </ul>
 
-        <h2 className="font-bold mb-1">💬 Chat</h2>
-        <div className="flex-1 overflow-y-auto border p-2 rounded mb-2">
+        <div className="flex-1 overflow-y-auto border p-2 mb-2">
           {messages.map((m, i) => (
-            <div key={i} className="text-sm">
+            <div key={i}>
               <strong>{m.userName}</strong>: {m.message}
             </div>
           ))}
