@@ -18,7 +18,7 @@ function ProfilePage() {
     );
   }
 
-  const totalSolved = stats.easy + stats.medium + stats.hard;
+  const totalSolved = stats.totalSolved;
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white p-6">
