@@ -4,33 +4,36 @@ const redisClient = require("../config/redis");
 
 const adminMiddleware = async (req, res, next) => {
   try {
-    const { token } = req.cookies;
-    if (!token) throw new Error("Token is not persent");
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    const token = authHeader.split(" ")[1];
 
     const payload = jwt.verify(token, process.env.JWT_KEY);
 
-    const { _id } = payload;
-
-    if (!_id) {
-      throw new Error("Invalid token");
+    if (payload.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
-    const result = await User.findById(_id);
-    if (!result) throw new Error("User Doesn't Exist");
+    const user = await User.findById(payload._id);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
 
-    if (payload.role !== "admin") throw new Error("Admin access required");
+    const isBlocked = await redisClient.exists(`token:${token}`);
+    if (isBlocked) {
+      return res.status(401).json({ message: "Token blocked" });
+    }
 
-    // Redis ke blockList mein persent toh nahi hai
-
-    const IsBlocked = await redisClient.exists(`token:${token}`);
-
-    if (IsBlocked) throw new Error("Invalid Token");
-
-    req.result = result;
+    req.result = user;
+    req.token = token;
 
     next();
   } catch (err) {
-    res.status(401).send("Error: " + err.message);
+    res.status(401).json({ message: "Unauthorized" });
   }
 };
 
