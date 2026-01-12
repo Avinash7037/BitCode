@@ -10,36 +10,38 @@ const SolutionVideo = require("../models/solutionVideo");
 
 /* ---------------- CREATE PROBLEM ---------------- */
 const createProblem = async (req, res) => {
-  const {
-    title,
-    description,
-    difficulty,
-    tags,
-    visibleTestCases,
-    hiddenTestCases,
-    startCode,
-    referenceSolution,
-  } = req.body;
-
   try {
-    // Validate reference solution against visible test cases
-    for (const { language, completeCode } of referenceSolution) {
-      const languageId = getLanguageById(language);
+    const {
+      title,
+      description,
+      difficulty,
+      tags,
+      visibleTestCases,
+      hiddenTestCases,
+      startCode,
+      referenceSolution = [], // 🔥 make optional
+    } = req.body;
 
-      const submissions = visibleTestCases.map((tc) => ({
-        source_code: completeCode,
-        language_id: languageId,
-        stdin: tc.input,
-        expected_output: tc.output,
-      }));
+    // 🧪 Run judge ONLY if referenceSolution is provided
+    if (referenceSolution.length > 0) {
+      for (const { language, completeCode } of referenceSolution) {
+        const languageId = getLanguageById(language);
 
-      const submitResult = await submitBatch(submissions);
-      const tokens = submitResult.map((r) => r.token);
-      const testResult = await submitToken(tokens);
+        const submissions = visibleTestCases.map((tc) => ({
+          source_code: completeCode,
+          language_id: languageId,
+          stdin: tc.input,
+          expected_output: tc.output,
+        }));
 
-      for (const test of testResult) {
-        if (test.status_id !== 3) {
-          return res.status(400).send("Reference solution failed");
+        const submitResult = await submitBatch(submissions);
+        const tokens = submitResult.map((r) => r.token);
+        const testResult = await submitToken(tokens);
+
+        for (const test of testResult) {
+          if (test.status_id !== 3) {
+            return res.status(400).send("Reference solution failed");
+          }
         }
       }
     }
@@ -63,7 +65,7 @@ const createProblem = async (req, res) => {
   }
 };
 
-/* ---------------- UPDATE PROBLEM (FIXED) ---------------- */
+/* ---------------- UPDATE PROBLEM ---------------- */
 const updateProblem = async (req, res) => {
   const { id } = req.params;
 
@@ -75,7 +77,6 @@ const updateProblem = async (req, res) => {
       return res.status(404).send("Problem not found");
     }
 
-    // Merge old + new data
     const updatedData = {
       title: req.body.title ?? existingProblem.title,
       description: req.body.description ?? existingProblem.description,
@@ -90,25 +91,30 @@ const updateProblem = async (req, res) => {
         req.body.referenceSolution ?? existingProblem.referenceSolution,
     };
 
-    // Run judge ONLY if solution or test cases changed
+    // 🧪 Validate again ONLY if changed
     if (req.body.referenceSolution || req.body.visibleTestCases) {
-      for (const { language, completeCode } of updatedData.referenceSolution) {
-        const languageId = getLanguageById(language);
+      if (updatedData.referenceSolution?.length > 0) {
+        for (const {
+          language,
+          completeCode,
+        } of updatedData.referenceSolution) {
+          const languageId = getLanguageById(language);
 
-        const submissions = updatedData.visibleTestCases.map((tc) => ({
-          source_code: completeCode,
-          language_id: languageId,
-          stdin: tc.input,
-          expected_output: tc.output,
-        }));
+          const submissions = updatedData.visibleTestCases.map((tc) => ({
+            source_code: completeCode,
+            language_id: languageId,
+            stdin: tc.input,
+            expected_output: tc.output,
+          }));
 
-        const submitResult = await submitBatch(submissions);
-        const tokens = submitResult.map((r) => r.token);
-        const testResult = await submitToken(tokens);
+          const submitResult = await submitBatch(submissions);
+          const tokens = submitResult.map((r) => r.token);
+          const testResult = await submitToken(tokens);
 
-        for (const test of testResult) {
-          if (test.status_id !== 3) {
-            return res.status(400).send("Reference solution failed");
+          for (const test of testResult) {
+            if (test.status_id !== 3) {
+              return res.status(400).send("Reference solution failed");
+            }
           }
         }
       }
